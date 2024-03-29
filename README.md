@@ -5,7 +5,7 @@ It fetches data via a REST server from a MongoDB Atlas and allows the user to:
 - add new records
 - delete and edit existing records
 - sort listed records
-- search by chosen fields (or multiple fields)
+- search by a chosen field (or multiple fields)
 
 ### The simplest way to run the app is using the dotnet cli:
 
