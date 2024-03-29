@@ -1,0 +1,201 @@
+@page "/patients"
+@using MedicalClinic.Data
+@inject PatientService PatientService
+@inject NavigationManager Navigation
+
+<PageTitle>Patients</PageTitle>
+
+<h1>Patients</h1>
+
+@if (_patientInfo == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="filters">
+        <h3>Search by values:</h3>
+        <form>
+            <select class="form-select field" @bind="CurrentFilter.By">
+                <option value="FirstName">First Name</option>
+                <option value="MiddleName">Middle Name</option>
+                <option value="LastName">Last Name</option>
+                <option value="Pesel">Pesel</option>
+                <option value="PhoneNumber">Phone Number</option>
+                <option value="Email">Email</option>
+                <option value="City">City</option>
+                <option value="Street">Street</option>
+                <option value="HouseNumber">House Number</option>
+                <option value="PostalCode">Postal Code</option>
+            </select>
+            <input type="text" class="form-control field" placeholder="Value..." @bind="CurrentFilter.Value" />
+            <button type="button" class="btn btn-primary field" @onclick="AddFilter">Add Filter</button>
+        </form>
+    <div>
+        @foreach (var filter in _filters)
+        {
+            <span class="badge bg-secondary filter-tag">@filter.By: @filter.Value <button class="btn-close" @onclick="() => RemoveFilter(filter)"></button></span>
+        }
+    </div>
+    </div>
+    <table class="table">
+        <thead>
+        <tr>
+            <th @onclick="() => SortPatients(nameof(Patient.FirstName))"
+                class="@(_sortBy == nameof(Patient.FirstName) ? "table-active" : "")">
+                First Name
+            </th>
+            <th @onclick="() => SortPatients(nameof(Patient.MiddleName))"
+                class="@(_sortBy == nameof(Patient.MiddleName) ? "table-active" : "")">
+                Middle Name
+            </th>
+            <th @onclick="() => SortPatients(nameof(Patient.LastName))"
+                class="@(_sortBy == nameof(Patient.LastName) ? "table-active" : "")">
+                Last Name
+            </th>
+            <th @onclick="() => SortPatients(nameof(Patient.Pesel))"
+                class="@(_sortBy == nameof(Patient.Pesel) ? "table-active" : "")">
+                Pesel
+            </th>
+            <th @onclick="() => SortPatients(nameof(Patient.PhoneNumber))"
+                class="@(_sortBy == nameof(Patient.PhoneNumber) ? "table-active" : "")">
+                Phone Number
+            </th>
+            <th @onclick="() => SortPatients(nameof(Patient.Email))"
+                class="@(_sortBy == nameof(Patient.Email) ? "table-active" : "")">
+                Email
+            </th>
+            <th @onclick="() => SortPatients(nameof(Patient.Address.City))"
+                class="@(_sortBy == nameof(Patient.Address.City) ? "table-active" : "")">
+                City
+            </th>
+            <th @onclick="() => SortPatients(nameof(Patient.Address.Street))"
+                class="@(_sortBy == nameof(Patient.Address.Street) ? "table-active" : "")">
+                Street
+            </th>
+            <th @onclick="() => SortPatients(nameof(Patient.Address.HouseNumber))"
+                class="@(_sortBy == nameof(Patient.Address.HouseNumber) ? "table-active" : "")">
+                House Number
+            </th>
+            <th @onclick="() => SortPatients(nameof(Patient.Address.PostalCode))"
+                class="@(_sortBy == nameof(Patient.Address.PostalCode) ? "table-active" : "")">
+                Postal Code
+            </th>
+            <th></th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var patient in _filteredPatientInfo)
+        {
+            <tr>
+                <td>@patient.FirstName</td>
+                <td>@patient.MiddleName</td>
+                <td>@patient.LastName</td>
+                <td>@patient.Pesel</td>
+                <td>@patient.PhoneNumber</td>
+                <td>@patient.Email</td>
+                <td>@patient.Address.City</td>
+                <td>@patient.Address.Street</td>
+                <td>@patient.Address.HouseNumber</td>
+                <td>@patient.Address.PostalCode</td>
+                <td>
+                    <button class="btn btn-danger" @onclick="() => DeletePatient(patient)">Delete</button>
+                </td>
+                <td>
+                    <button class="btn btn-primary" @onclick="() => NavigateToEditPatient(patient)">Edit</button>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Patient>? _patientInfo;
+    private List<Patient>? _filteredPatientInfo;
+    
+    private string _sortBy = "FirstName";
+    private bool _sortAscending = true;
+    
+    private Filter CurrentFilter { get; set; } = new Filter();
+    private readonly List<Filter> _filters = new List<Filter>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _patientInfo = await PatientService.GetPatients();
+        _filteredPatientInfo = _patientInfo;
+    }
+    
+    private void AddFilter()
+    {
+        _filters.Add(CurrentFilter);
+        CurrentFilter = new Filter();
+        _filteredPatientInfo = _patientInfo;
+        foreach (var filter in _filters)
+        {
+            _filteredPatientInfo = _filteredPatientInfo?.Where(patient =>
+            {
+                var isAddress = patient.GetType().GetProperty(filter.By)?.GetValue(patient) == null;
+                return isAddress ? patient.Address.GetType().GetProperty(filter.By)?.GetValue(patient.Address)?.ToString().Contains(filter.Value) ?? false
+                    : patient.GetType().GetProperty(filter.By)?.GetValue(patient)?.ToString().Contains(filter.Value) ?? false;
+            }).ToList();
+        }
+    }
+    
+    private void RemoveFilter(Filter filter)
+    {
+        _filters.Remove(filter);
+        _filteredPatientInfo = _patientInfo;
+        foreach (var f in _filters)
+        {
+            _filteredPatientInfo = _filteredPatientInfo?.Where(patient =>
+            {
+                var isAddress = patient.GetType().GetProperty(f.By)?.GetValue(patient) == null;
+                return isAddress ? patient.Address.GetType().GetProperty(f.By)?.GetValue(patient.Address)?.ToString().Contains(f.Value) ?? false
+                    : patient.GetType().GetProperty(f.By)?.GetValue(patient)?.ToString().Contains(f.Value) ?? false;
+            }).ToList();
+        }
+    }
+    
+    private async Task DeletePatient(Patient patient)
+    {
+        await PatientService.DeletePatient(patient.Pesel);
+        _patientInfo!.Remove(patient);
+        if (_filteredPatientInfo!.Contains(patient))
+        {
+            _filteredPatientInfo.Remove(patient);
+        }
+    }
+    
+    private void NavigateToEditPatient(Patient patient)
+    {
+        Navigation.NavigateTo($"/editpatient/{patient.Pesel}");
+    }
+    
+    private void SortPatients(string sortBy)
+    {
+        if (_sortBy == sortBy)
+        {
+            _sortAscending = !_sortAscending;
+        }
+        else
+        {
+            _sortBy = sortBy;
+            _sortAscending = true;
+        }
+
+        _filteredPatientInfo = _filteredPatientInfo?.OrderBy(patient =>
+        {
+            var isAddress = patient.GetType().GetProperty(sortBy)?.GetValue(patient) == null;
+            
+            return isAddress ? patient.Address.GetType().GetProperty(sortBy)?.GetValue(patient.Address)
+                : patient.GetType().GetProperty(sortBy)?.GetValue(patient);
+        }).ToList();
+        
+        if (!_sortAscending)
+        {
+            _filteredPatientInfo?.Reverse();
+        }
+    }
+}
